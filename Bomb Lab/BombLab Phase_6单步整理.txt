@@ -1,0 +1,116 @@
+
+phase_6:
+1.容易发现要输入六个整数。 
+2.这个题很长，但模块很明显。 
+3.第一模块是一个二重循环，发现输入要是1,2,3,4,5,6的一个排列。 
+4.第二模块看得出在构造链表，具体没懂的话可以跳过，查看一下链表的值就可以大致读一读汇编就看出功能。 
+5.第三模块是一个for循环，在判断%rbx和8(%rbx)的data域递减，那么很容易猜测答案是6,5,4,3,2,1，但是不是。 
+6.看一看%rbx会发现，data域装的不是1,2,3,4,5,6而是似乎在上一模块经过某种运算或去某个地方读出来的答案。 
+7.如果有耐心可以细读上一模块，否则直接从6.中把1,2,3,4,5,6对应的data读出来，排个序即可，就能做出答案。
+
+
+000000000000151e <phase_6>:
+    151e:	41 54                	push   %r12
+    1520:	55                   	push   %rbp
+    1521:	53                   	push   %rbx
+    1522:	48 83 ec 60          	sub    $0x60,%rsp
+    1526:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+    152d:	00 00 
+    152f:	48 89 44 24 58       	mov    %rax,0x58(%rsp)
+    1534:	31 c0                	xor    %eax,%eax
+    1536:	48 89 e6             	mov    %rsp,%rsi                        //保存栈指针
+    1539:	e8 6d 05 00 00       	callq  1aab <read_six_numbers>
+
+六个数位于 %rsp, %rsp + 4， %rsp + 8, %rsp + 12, %rsp + 16, %rsp + 20
+
+    153e:	bd 00 00 00 00       	mov    $0x0,%ebp                      //ebp=0
+    1543:	eb 27                	jmp    156c <phase_6+0x4e>    
+    1545:	e8 25 05 00 00       	callq  1a6f <explode_bomb>
+    154a:	eb 33                	jmp    157f <phase_6+0x61>
+    154c:	83 c3 01             	add    $0x1,%ebx
+    154f:	83 fb 05             	cmp    $0x5,%ebx                      
+    1552:	7f 15                	jg     1569 <phase_6+0x4b>     //如果ebx(rbp+1)>5
+    1554:	48 63 c5             	movslq %ebp,%rax
+    1557:	48 63 d3             	movslq %ebx,%rdx                    //下标
+    155a:	8b 3c 94             	mov    (%rsp,%rdx,4),%edi        //数组a[i]保存到edi
+    155d:	39 3c 84             	cmp    %edi,(%rsp,%rax,4)
+    1560:	75 ea                	jne    154c <phase_6+0x2e>
+    1562:	e8 08 05 00 00       	callq  1a6f <explode_bomb>   //各个元素之间不能相等
+    1567:	eb e3                	jmp    154c <phase_6+0x2e>
+    1569:	44 89 e5             	mov    %r12d,%ebp                //ebp+=1
+    156c:	83 fd 05             	cmp    $0x5,%ebp                   //for循环的比较
+    156f:	7f 17                	jg     1588 <phase_6+0x6a>   //跳出循环到1588
+    1571:	48 63 c5             	movslq %ebp,%rax                 //rax保存ebp
+    1574:	8b 04 84             	mov    (%rsp,%rax,4),%eax      //取出第rax个数到eax
+    1577:	83 e8 01             	sub    $0x1,%eax                  
+    157a:	83 f8 05             	cmp    $0x5,%eax
+    157d:	77 c6                	ja     1545 <phase_6+0x27>   //这三行保证输入的数小于7 在1，2，3，4，5，6之间
+    157f:	44 8d 65 01          	lea    0x1(%rbp),%r12d          
+    1583:	44 89 e3             	mov    %r12d,%ebx                //ebx和r12d=rbp+1，rbp是循环变量
+    1586:	eb c7                	jmp    154f <phase_6+0x31>
+
+
+
+    1588:	b8 00 00 00 00       	mov    $0x0,%eax                   //eax=0
+    158d:	eb 11                	jmp    15a0 <phase_6+0x82>
+    158f:	48 63 c8             	movslq %eax,%rcx
+    1592:	ba 07 00 00 00       	mov    $0x7,%edx
+    1597:	2b 14 8c             	sub    (%rsp,%rcx,4),%edx
+    159a:	89 14 8c             	mov    %edx,(%rsp,%rcx,4)
+    159d:	83 c0 01             	add    $0x1,%eax
+    15a0:	83 f8 05             	cmp    $0x5,%eax                 //循环
+    15a3:	7e ea                	jle    158f <phase_6+0x71> //用7减去数组中的值并替换原来的值
+
+
+
+    15a5:	be 00 00 00 00       	mov    $0x0,%esi                  //esi=0
+    15aa:	eb 17                	jmp    15c3 <phase_6+0xa5>
+    15ac:	48 8b 52 08          	mov    0x8(%rdx),%rdx       //后推一位
+    15b0:	83 c0 01             	add    $0x1,%eax                //eax+=1
+    15b3:	48 63 ce             	movslq %esi,%rcx               
+    15b6:	39 04 8c             	cmp    %eax,(%rsp,%rcx,4)   //取出a[i]，如果比一个常数eax大，常数加一继续比较
+    15b9:	7f f1                	jg     15ac <phase_6+0x8e>
+    15bb:	48 89 54 cc 20       	mov    %rdx,0x20(%rsp,%rcx,8)  //如果小于等于该常数
+    15c0:	83 c6 01             	add    $0x1,%esi                  //循环变量+1
+    15c3:	83 fe 05             	cmp    $0x5,%esi                 //
+    15c6:	7f 0e                	jg     15d6 <phase_6+0xb8>
+    15c8:	b8 01 00 00 00       	mov    $0x1,%eax 
+    15cd:	48 8d 15 3c 3b 20 00 	lea    0x203b3c(%rip),%rdx        # 205110 <node1>   //取出第一个数（链表？）
+    15d4:	eb dd                	jmp    15b3 <phase_6+0x95>
+
+
+    15d6:	48 8b 5c 24 20       	mov    0x20(%rsp),%rbx     //rbx开始
+    15db:	48 89 d9             	mov    %rbx,%rcx
+    15de:	b8 01 00 00 00       	mov    $0x1,%eax
+    15e3:	eb 12                	jmp    15f7 <phase_6+0xd9>
+    15e5:	48 63 d0             	movslq %eax,%rdx
+    15e8:	48 8b 54 d4 20       	mov    0x20(%rsp,%rdx,8),%rdx  //复制的数据放在rdx
+    15ed:	48 89 51 08          	mov    %rdx,0x8(%rcx)
+    15f1:	83 c0 01             	add    $0x1,%eax
+    15f4:	48 89 d1             	mov    %rdx,%rcx
+    15f7:	83 f8 05             	cmp    $0x5,%eax
+    15fa:	7e e9                	jle    15e5 <phase_6+0xc7>
+    15fc:	48 c7 41 08 00 00 00 	movq   $0x0,0x8(%rcx)
+    1603:	00 
+    1604:	bd 00 00 00 00       	mov    $0x0,%ebp
+    1609:	eb 07                	jmp    1612 <phase_6+0xf4>
+    160b:	48 8b 5b 08          	mov    0x8(%rbx),%rbx
+    160f:	83 c5 01             	add    $0x1,%ebp
+    1612:	83 fd 04             	cmp    $0x4,%ebp
+    1615:	7f 11                	jg     1628 <phase_6+0x10a>
+    1617:	48 8b 43 08          	mov    0x8(%rbx),%rax
+    161b:	8b 00                	mov    (%rax),%eax  //地址？
+    161d:	39 03                	cmp    %eax,(%rbx) //下一个数大于上一个数
+    161f:	7d ea                	jge    160b <phase_6+0xed>
+    1621:	e8 49 04 00 00       	callq  1a6f <explode_bomb>
+    1626:	eb e3                	jmp    160b <phase_6+0xed>
+    1628:	48 8b 44 24 58       	mov    0x58(%rsp),%rax
+    162d:	64 48 33 04 25 28 00 	xor    %fs:0x28,%rax
+    1634:	00 00 
+    1636:	75 09                	jne    1641 <phase_6+0x123>
+    1638:	48 83 c4 60          	add    $0x60,%rsp
+    163c:	5b                   	pop    %rbx
+    163d:	5d                   	pop    %rbp
+    163e:	41 5c                	pop    %r12
+    1640:	c3                   	retq   
+    1641:	e8 8a f8 ff ff       	callq  ed0 <__stack_chk_fail@plt>

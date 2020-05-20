@@ -1,0 +1,204 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# zhu 1800012988@pku.edu.cn
+#
+# Describe how and why you modified the baseline code.
+#
+# VERSION 01
+#	Expand the loop to eight layers
+#	The original code: xorq %rax,%rax  andq %rdx,%rdx is
+#  deleted for count is originally zero,and the subq instruction 
+#  can take the place of andq
+#	The remaining elements of the array is dealt with in Last
+#  ,they are divided into 3 groups,{0,1,2,3},{4},{5,6,7},so one 
+#  element is most likely to fall into {0,1,2,3},then {5,6,7},
+#  then {4}(denoted as left,right,len4)
+#	In the end, deal with elements in different group, 
+#  remember that the way to avoid Load/Use Hazard is different 
+#  from it in Loop
+# 
+# VERSION 02
+# 	try to change the way JXX work, failed
+#
+# VERSION 03
+#	length:997/1000
+#	score:57.2/60
+#	Expand the loop to ten layers
+#	The remaining elements of the array is dealt with in Last
+#  ,they are divided into 3 groups,{0,1,2,3,4},{5},{6,7,8,9},so one 
+#  element is most likely to fall into {0,1,2,3,4},then {6,7,8,9},
+#  then {5}(denoted as left,right,len5)
+#	Improve the efficiency of judgment
+#	Search tree:
+#	{0,1,2,3,4} {5} {6,7,8,9}
+#  {0,1,2} {3} {4}      {6,7} {8,9} 	
+#
+# VERSION 04
+#	length:997/1000
+#	score:57.2/60
+#	In VERSION 03,the search is mostly two layers,in this 
+#  version,try to use three layers of searching
+#	The remaining elements of the array is dealt with in Last
+#  ,they are divided into 3 groups,{0,1,2,3,4},{5},{6,7,8,9},so one 
+#  element is most likely to fall into {0,1,2,3,4},then {6,7,8,9},
+#  then {5}(denoted as left,right,len5)
+#	Improve the efficiency of judgment
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	iaddq $-10,%rdx		# len < 8?
+	jl Last			# if so, goto Last:
+
+Npos1:	mrmovq (%rdi), %r10	# read val from src...
+	mrmovq 8(%rdi), %r11	# read val from src...
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos2		# if so, goto Npos2:
+	iaddq $0x1, %rax	# count++
+Npos2:	mrmovq 16(%rdi), %r10	# read val from src...
+	rmmovq %r11, 8(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos3		# if so, goto Npos3:
+	iaddq $0x1, %rax	# count++
+Npos3:	mrmovq 24(%rdi), %r11	# read val from src...
+	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos4		# if so, goto Npos4:
+	iaddq $0x1, %rax	# count++
+Npos4:	mrmovq 32(%rdi), %r10	# read val from src...
+	rmmovq %r11, 24(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos5		# if so, goto Npos5:
+	iaddq $0x1, %rax	# count++
+Npos5:	mrmovq 40(%rdi), %r11	# read val from src...
+	rmmovq %r10, 32(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos6		# if so, goto Npos6:
+	iaddq $0x1, %rax	# count++
+Npos6:	mrmovq 48(%rdi), %r10	# read val from src...
+	rmmovq %r11, 40(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos7		# if so, goto Npos7:
+	iaddq $0x1, %rax	# count++
+Npos7:	mrmovq 56(%rdi), %r11	# read val from src...
+	rmmovq %r10, 48(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos8		# if so, goto Npos8:
+	iaddq $0x1, %rax	# count++
+Npos8:	mrmovq 64(%rdi), %r10	# read val from src...
+	rmmovq %r11, 56(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos9		# if so, goto Npos9:
+	iaddq $0x1, %rax	# count++
+Npos9:	mrmovq 72(%rdi), %r11	# read val from src...
+	rmmovq %r10, 64(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos10		# if so, goto Npos10:
+	iaddq $0x1, %rax	# count++
+Npos10:	rmmovq %r11, 72(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Loop		# if so, goto Loop:
+	iaddq $0x1, %rax	# count++
+Loop:
+	iaddq $0x50, %rdi	# src++
+	iaddq $0x50, %rsi	# dst++
+	iaddq $-10,%rdx		# len >= 10? (these 10 numbers haven't been moved
+	jge Npos1		# if so, goto Npos1:
+
+
+Last:	#searching by dividing into 3 parts 
+	iaddq	$5,%rdx		#-4 -3 -2 -1 0 1 2 3 
+	jl	Left		# 0  1  2  3 4 5 6 7
+	jg	Right	
+	je	len5		# 4
+Left:				#len = 0 || 1 || 2 || 3(-4 -3 -2 -1)
+	iaddq	$2,%rdx		# 1
+	jl	LeftRemain
+	jg	len4
+	je	len3
+LeftRemain:
+	iaddq   $2,%rdx
+	je	len1
+	jg	len2
+	ret
+Right:
+	iaddq	$-2,%rdx	# len = 5 || 6 || 7( 1 2 3 ) 
+	jg	RightRemain	# len = 5
+	jl	len6
+	je 	len7
+RightRemain:
+	iaddq	$-1,%rdx
+	je	len8		# len = 6,else len = 7	
+len9:
+	mrmovq 64(%rdi),%r11	# read val from src...
+	andq %r11,%r11		# val <= 0?
+	rmmovq %r11,64(%rsi)
+	jle len8
+	iaddq $0x1, %rax	# count++
+len8:
+	mrmovq 56(%rdi),%r10
+	andq %r10,%r10
+	rmmovq %r10,56(%rsi)
+	jle len7		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+len7:
+	mrmovq 48(%rdi),%r11	# read val from src...
+	andq %r11,%r11		# val <= 0?
+	rmmovq %r11,48(%rsi)
+	jle len6
+	iaddq $0x1, %rax	# count++
+len6:
+	mrmovq 40(%rdi),%r10
+	andq %r10,%r10
+	rmmovq %r10,40(%rsi)
+	jle len5		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+len5:
+	mrmovq 32(%rdi), %r11	# read val from src...
+	andq %r11,%r11
+	rmmovq %r11,32(%rsi)
+	jle len4		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+len4:
+	mrmovq 24(%rdi), %r10	# read val from src...
+	andq %r10,%r10
+	rmmovq %r10,24(%rsi)
+	jle len3		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+len3:
+	mrmovq 16(%rdi), %r11	# read val from src...
+	andq %r11,%r11
+	rmmovq %r11,16(%rsi)
+	jle len2		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+len2:
+	mrmovq 8(%rdi), %r10	# read val from src...
+	andq %r10,%r10
+	rmmovq %r10,8(%rsi)
+	jle len1		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+len1:
+	mrmovq (%rdi), %r11	# read val from src...
+	andq %r11, %r11		# val <= 0?
+	rmmovq %r11, (%rsi)
+	jle Done		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */

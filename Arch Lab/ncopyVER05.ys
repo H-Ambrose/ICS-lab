@@ -1,0 +1,222 @@
+#/* $begin ncopy-ys */
+##################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# zhu 1800012988@pku.edu.cn
+#
+# Describe how and why you modified the baseline code.
+#
+# VERSION 01
+#	Expand the loop to eight layers
+#	The original code: xorq %rax,%rax  andq %rdx,%rdx is
+#  deleted for count is originally zero,and the subq instruction 
+#  can take the place of andq
+#	The remaining elements of the array is dealt with in Last
+#  ,they are divided into 3 groups,{0,1,2,3},{4},{5,6,7},so one 
+#  element is most likely to fall into {0,1,2,3},then {5,6,7},
+#  then {4}(denoted as left,right,len4)
+#	In the end, deal with elements in different group, 
+#  remember that the way to avoid Load/Use Hazard is different 
+#  from it in Loop
+# 
+# VERSION 02
+# 	try to change the way JXX work, failed
+#
+# VERSION 03
+#	length:997/1000
+#	score:57.2/60
+#	Expand the loop to ten layers
+#	The remaining elements of the array is dealt with in Last
+#  ,they are divided into 3 groups,{0,1,2,3,4},{5},{6,7,8,9},so one 
+#  element is most likely to fall into {0,1,2,3,4},then {6,7,8,9},
+#  then {5}(denoted as left,right,len5)
+#	Improve the efficiency of judgment
+#	Search tree:
+#	{0,1,2,3,4} {5} {6,7,8,9}
+#  {0,1,2} {3} {4}      {6,7} {8,9} 	
+#
+# VERSION 04
+#	length:998/1000
+#	score:59.5/60
+#	In VERSION 03,the search is mostly two layers,in this 
+#  version,try to use three layers of searching
+#	Continue to improve the efficiency of judgment:
+#	with the number growing, the efficiency is dropping,so this
+#  time try a different way to split up the numbers,focusing the 
+#  large numbers:{4,5,6,7,8,9}
+#	Search tree:
+#	{0,1,2} {3} {4,5,6,7,8,9}
+#     {0}{1}{2}     {4,5}{6}{7,8,9}
+#		   {4}{5}   {7}{8}{9}
+#  	change the way numbers fall though the 'Last' part,cut the
+#  lenX part into two parts:the first part(lenX) deals with the 
+#  last len(X+1), deciding if need to iaddq $1,%rax,the second part
+#  (lensubX) copy and calculate wether the next X-1 is greater than 
+#  zero  
+##################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+
+##################################################################
+# You can modify this portion
+	# Loop header
+	iaddq $-10,%rdx		# len < 8?
+	jl Last			# if so, goto Last:
+
+Npos1:	mrmovq (%rdi), %r10	# read val from src...
+	mrmovq 8(%rdi), %r11	# read val from src...
+	rmmovq %r10, (%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos2		# if so, goto Npos2:
+	iaddq $0x1, %rax	# count++
+Npos2:	mrmovq 16(%rdi), %r10	# read val from src...
+	rmmovq %r11, 8(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos3		# if so, goto Npos3:
+	iaddq $0x1, %rax	# count++
+Npos3:	mrmovq 24(%rdi), %r11	# read val from src...
+	rmmovq %r10, 16(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos4		# if so, goto Npos4:
+	iaddq $0x1, %rax	# count++
+Npos4:	mrmovq 32(%rdi), %r10	# read val from src...
+	rmmovq %r11, 24(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos5		# if so, goto Npos5:
+	iaddq $0x1, %rax	# count++
+Npos5:	mrmovq 40(%rdi), %r11	# read val from src...
+	rmmovq %r10, 32(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos6		# if so, goto Npos6:
+	iaddq $0x1, %rax	# count++
+Npos6:	mrmovq 48(%rdi), %r10	# read val from src...
+	rmmovq %r11, 40(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos7		# if so, goto Npos7:
+	iaddq $0x1, %rax	# count++
+Npos7:	mrmovq 56(%rdi), %r11	# read val from src...
+	rmmovq %r10, 48(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos8		# if so, goto Npos8:
+	iaddq $0x1, %rax	# count++
+Npos8:	mrmovq 64(%rdi), %r10	# read val from src...
+	rmmovq %r11, 56(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Npos9		# if so, goto Npos9:
+	iaddq $0x1, %rax	# count++
+Npos9:	mrmovq 72(%rdi), %r11	# read val from src...
+	rmmovq %r10, 64(%rsi)	# ...and store it to dst
+	andq %r10, %r10		# val <= 0?
+	jle Npos10		# if so, goto Npos10:
+	iaddq $0x1, %rax	# count++
+Npos10:	rmmovq %r11, 72(%rsi)	# ...and store it to dst
+	andq %r11, %r11		# val <= 0?
+	jle Loop		# if so, goto Loop:
+	iaddq $0x1, %rax	# count++
+Loop:
+	iaddq $0x50, %rdi	# src++
+	iaddq $0x50, %rsi	# dst++
+	iaddq $-10,%rdx		# len >= 10? (these 10 numbers haven't been moved
+	jge Npos1		# if so, goto Npos1:
+
+
+Last:	#searching by dividing into 3 parts 
+	iaddq	$7,%rdx		#-4 -3 -2 -1 0 1 2 3 
+	#can'i understand why there must put Left first
+	jl	Left		# 0  1  2  3 4 5 6 7
+	jg	Right		
+	je	len3		# 4
+Left:				#len = 0 || 1 || 2 || 3(-4 -3 -2 -1)
+	iaddq	$1,%rdx		# 2
+	je	len2
+	iaddq	$1,%rdx		# 1
+	je	len1
+	ret
+Right:
+	iaddq	$-3,%rdx	# len = 5 || 6 || 7( 1 2 3 ) 
+	jg	RightRemain2	# len = 5
+	je 	len6
+RightRemain1:
+	iaddq	$1,%rdx
+	je	len5
+	jmp	len4
+RightRemain2:
+	iaddq	$-2,%rdx
+	je	len8		# len = 6,else len = 7	
+	jl	len7
+
+len9:
+	mrmovq 64(%rdi),%r10	# read val from src...
+	andq %r10,%r10		# val <= 0?
+	rmmovq %r10,64(%rsi)
+len8:
+	mrmovq 56(%rdi),%r10
+	jle lensub8		#try to avoid misprediction
+	iaddq $0x1, %rax	# count++
+lensub8:
+	rmmovq %r10,56(%rsi)
+	andq %r10,%r10
+len7:
+	mrmovq 48(%rdi),%r10	# read val from src...
+	jle lensub7		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+lensub7:
+	andq %r10,%r10		# val <= 0?
+	rmmovq %r10,48(%rsi)
+len6:
+	mrmovq 40(%rdi),%r10
+	jle lensub6
+	iaddq $0x1, %rax	# count++
+lensub6:
+	andq %r10,%r10
+	rmmovq %r10,40(%rsi)
+len5:
+	mrmovq 32(%rdi), %r10	# read val from src...
+	jle lensub5		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+lensub5:
+	andq %r10,%r10
+	rmmovq %r10,32(%rsi)
+len4:
+	mrmovq 24(%rdi), %r10	# read val from src...
+	jle lensub4		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+lensub4:
+	andq %r10,%r10
+	rmmovq %r10,24(%rsi)
+len3:
+	mrmovq 16(%rdi), %r10	# read val from src...
+	jle lensub3		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+lensub3:
+	andq %r10,%r10
+	rmmovq %r10,16(%rsi)
+len2:
+	mrmovq 8(%rdi), %r10	# read val from src...
+	jle lensub2		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+lensub2:
+	andq %r10,%r10
+	rmmovq %r10,8(%rsi)
+len1:
+	mrmovq (%rdi), %r10	# read val from src...
+	jle lensub1		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+lensub1:
+	andq %r10, %r10		# val <= 0?
+	rmmovq %r10, (%rsi)
+	jle Done		# if so, goto Npos:
+	iaddq $0x1, %rax	# count++
+
+##################################################################
+# Do not modify the following section of code
+# Function epilogue.
+Done:
+	ret
+##################################################################
+# Keep the following label at the end of your function
+End:
+#/* $end ncopy-ys */
